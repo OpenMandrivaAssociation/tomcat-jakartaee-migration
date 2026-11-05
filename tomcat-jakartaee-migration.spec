@@ -8,11 +8,9 @@ URL:		https://tomcat.apache.org/download-migration.cgi
 Source0:	https://github.com/apache/tomcat-jakartaee-migration/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
 
 BuildArch:	noarch
-BuildRequires:	mvn(org.apache:apache:pom:)
 BuildRequires:	mvn(org.apache.bcel:bcel)
 BuildRequires:	mvn(org.apache.commons:commons-compress)
 BuildRequires:	mvn(commons-io:commons-io)
-BuildRequires:	mvn(org.apache.ant:ant)
 BuildRequires:	python
 # Literal, so the first rpmbuild -bs records them before sysjar is installed.
 BuildRequires:	maven
@@ -23,12 +21,17 @@ BuildOption(install):	--file-name jakartaee-migration --link %{name} --alias org
 %description
 Rewrites a Java EE web application to the Jakarta EE package names. Tomcat
 embeds this library. The jar is not shaded: its dependencies stay separate
-system jars. OSGi manifest rewriting is omitted, so Eclipse Equinox is not
-required.
+system jars. OSGi manifest rewriting and the Ant task are omitted.
 
 %prep
 %setup -q -n %{name}-%{version}
 rm -f src/main/java/org/apache/tomcat/jakartaee/ManifestConverter.java
+# The Ant task is a frontend. Tomcat embeds Migration, and the system Ant
+# package does not provide a Maven coordinate.
+rm -f src/main/java/org/apache/tomcat/jakartaee/AntHandler.java \
+	src/main/java/org/apache/tomcat/jakartaee/MigrationTask.java \
+	src/test/java/org/apache/tomcat/jakartaee/AntHandlerTest.java \
+	src/test/java/org/apache/tomcat/jakartaee/MigrationTaskTest.java
 python - <<'PY'
 import re
 from pathlib import Path
@@ -42,6 +45,24 @@ migration.write_text(text.replace(old, "", 1))
 
 pom = Path("pom.xml")
 text = pom.read_text()
+text, count = re.subn(
+    r"\s*<parent>.*?</parent>",
+    "\n",
+    text,
+    count=1,
+    flags=re.S,
+)
+if count != 1:
+    raise SystemExit("parent missing")
+text, count = re.subn(
+    r"\s*<dependency>\s*<groupId>org\.apache\.ant</groupId>\s*<artifactId>ant</artifactId>.*?</dependency>",
+    "\n",
+    text,
+    count=1,
+    flags=re.S,
+)
+if count != 1:
+    raise SystemExit("ant dependency missing")
 text, count = re.subn(
     r"\s*<dependency>\s*<groupId>org\.eclipse\.platform</groupId>\s*<artifactId>org\.eclipse\.osgi</artifactId>.*?</dependency>",
     "\n",
