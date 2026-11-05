@@ -14,6 +14,9 @@ BuildRequires:	mvn(org.apache.commons:commons-compress)
 BuildRequires:	mvn(commons-io:commons-io)
 BuildRequires:	mvn(org.apache.ant:ant)
 BuildRequires:	python
+# Literal, so the first rpmbuild -bs records them before sysjar is installed.
+BuildRequires:	maven
+BuildRequires:	java-current-devel
 BuildSystem:	maven
 BuildOption(install):	--file-name jakartaee-migration --link %{name} --alias org.apache.tomcat:jakartaee-migration
 
